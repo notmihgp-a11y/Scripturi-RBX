@@ -1,16 +1,18 @@
 local kyri = loadstring(game:HttpGet("https://kyrilib.dev/kyrilib/"))()
 
-local w = kyri.new("Necromancer", {
+local w = kyri.new("M's Necromancer", {
     GameName = "NecroScript",
     AutoLoad = "default"
 })
 
 -- ================= CATEGORII (TAB-URI) =================
 local farm = w:tab("Farm", "sword")
-farm:section("Farm Control")
-
 local spawns = w:tab("Spawns", "shield")
+local miscTab = w:tab("Misc", "settings")
+
+farm:section("Farm Control")
 spawns:section("Spawns Control")
+miscTab:section("Miscellaneous")
 
 -- ================= EVENIMENTE JOC =================
 local Event14 = game:GetService("ReplicatedStorage").Necro.NecSkill14Local
@@ -30,14 +32,13 @@ local waveSkipConnection = nil
 
 -- ==================== CATEGORIA: FARM ====================
 
--- 1. purple circle
-farm:toggle("purple circle", false, function(state)
+-- 1. Doom Circle (Redenumit din purple circle)
+farm:toggle("Doom Circle", false, function(state)
     isToggled12 = state
-    w:notify("purple circle", state and "Activat" or "Dezactivat", 2)
+    w:notify("Doom Circle", state and "Activat" or "Dezactivat", 2)
     
     if isToggled12 then
         task.spawn(function()
-            -- Am mărit maxX de la 5099 la 5350 pentru a acoperi și zona din dreapta scheleților
             local minX, maxX = 4892, 5120
             local minZ, maxZ = -130, 138
             
@@ -79,31 +80,13 @@ farm:toggle("purple circle", false, function(state)
     end
 end, "skill12_toggle")
 
--- 2. Auto Skip Wave
-farm:toggle("Auto Skip Wave", false, function(state)
-    w:notify("Auto Skip", state and "Activat" or "Dezactivat", 2)
-    
-    if state then
-        if WaveSkipEvent then
-            waveSkipConnection = WaveSkipEvent.OnClientEvent:Connect(function()
-                WaveSkipEvent:FireServer()
-            end)
-        end
-    else
-        if waveSkipConnection then
-            waveSkipConnection:Disconnect()
-            waveSkipConnection = nil
-        end
-    end
-end, "waveskip_toggle")
-
 
 -- ==================== CATEGORIA: SPAWNS ====================
 
--- 1. big skelly
-spawns:toggle("big skelly", false, function(state)
+-- 1. Big Skeleton (Redenumit din big skelly)
+spawns:toggle("Big Skeleton", false, function(state)
     isToggled14 = state
-    w:notify("big skelly", state and "Activat" or "Dezactivat", 2)
+    w:notify("Big Skeleton", state and "Activat" or "Dezactivat", 2)
     
     if isToggled14 then
         task.spawn(function()
@@ -139,10 +122,10 @@ spawns:toggle("big skelly", false, function(state)
     end
 end, "skill14_toggle")
 
--- 2. skelly
-spawns:toggle("skelly", false, function(state)
+-- 2. Soldier (Redenumit din skelly)
+spawns:toggle("Soldier", false, function(state)
     isToggled3 = state
-    w:notify("skelly", state and "Activat" or "Dezactivat", 2)
+    w:notify("Soldier", state and "Activat" or "Dezactivat", 2)
     
     if isToggled3 then
         task.spawn(function()
@@ -178,10 +161,10 @@ spawns:toggle("skelly", false, function(state)
     end
 end, "skill3_toggle")
 
--- 3. archer
-spawns:toggle("archer", false, function(state)
+-- 3. Archer (Redenumit din archer)
+spawns:toggle("Archer", false, function(state)
     isToggled6 = state
-    w:notify("archer", state and "Activat" or "Dezactivat", 2)
+    w:notify("Archer", state and "Activat" or "Dezactivat", 2)
     
     if isToggled6 then
         task.spawn(function()
@@ -217,10 +200,10 @@ spawns:toggle("archer", false, function(state)
     end
 end, "skill6_toggle")
 
--- 4. zombie
-spawns:toggle("zombie", false, function(state)
+-- 4. Zombie (Redenumit din zombie)
+spawns:toggle("Zombie", false, function(state)
     isToggled2 = state
-    w:notify("zombie", state and "Activat" or "Dezactivat", 2)
+    w:notify("Zombie", state and "Activat" or "Dezactivat", 2)
     
     if isToggled2 then
         task.spawn(function()
@@ -255,3 +238,24 @@ spawns:toggle("zombie", false, function(state)
         end)
     end
 end, "skill2_toggle")
+
+
+-- ==================== CATEGORIA: MISC ====================
+
+-- 1. Auto Skip Wave (Mutat aici din categoria Farm)
+miscTab:toggle("Auto Skip Wave", false, function(state)
+    w:notify("Auto Skip", state and "Activat" or "Dezactivat", 2)
+    
+    if state then
+        if WaveSkipEvent then
+            waveSkipConnection = WaveSkipEvent.OnClientEvent:Connect(function()
+                WaveSkipEvent:FireServer()
+            end)
+        end
+    else
+        if waveSkipConnection then
+            waveSkipConnection:Disconnect()
+            waveSkipConnection = nil
+        end
+    end
+end, "waveskip_toggle")
