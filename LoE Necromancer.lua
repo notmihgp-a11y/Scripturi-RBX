@@ -37,8 +37,9 @@ farm:toggle("purple circle", false, function(state)
     
     if isToggled12 then
         task.spawn(function()
-            local minX, maxX = 4892, 5099
-            local minZ, maxZ = -6, 138
+            -- Am mărit maxX de la 5099 la 5350 pentru a acoperi și zona din dreapta scheleților
+            local minX, maxX = 4892, 5120
+            local minZ, maxZ = -130, 138
             
             while isToggled12 do
                 pcall(function()
