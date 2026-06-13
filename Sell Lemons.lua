@@ -1,8 +1,8 @@
 --// Kyri Library Initialization
 local kyri = loadstring(game:HttpGet("https://kyrilib.dev/kyrilib/"))()
 
-local w = kyri.new("Lemon Sells", {
-    GameName = "LemonSells",
+local w = kyri.new("M's Lemons", {
+    GameName = "M's Lemons",
     AutoLoad = "default"
 })
 
