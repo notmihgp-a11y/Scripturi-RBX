@@ -1,7 +1,7 @@
 local kyri = loadstring(game:HttpGet("https://kyrilib.dev/kyrilib/"))()
 
-local w = kyri.new("prison life", {
-    GameName = "PrisonLife",
+local w = kyri.new("M's Berserker", {
+    GameName = "BerkFarm",
     AutoLoad = "default"
 })
 
