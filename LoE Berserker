@@ -1,0 +1,151 @@
+local kyri = loadstring(game:HttpGet("https://kyrilib.dev/kyrilib/"))()
+
+local w = kyri.new("prison life", {
+    GameName = "PrisonLife",
+    AutoLoad = "default"
+})
+
+local main = w:tab("Main", "sword")
+local misc = w:tab("Misc", "settings")
+
+-- SECTION: MOVEMENT
+main:section("movement")
+
+main:slider("walkspeed", 16, 500, 16, function(val)
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = val
+end, "ws")
+
+main:slider("jump power", 50, 500, 50, function(val)
+    game.Players.LocalPlayer.Character.Humanoid.JumpPower = val
+end, "jp")
+
+main:space()
+
+-- SECTION: STATS
+main:section("stats")
+
+main:toggle("Max Constitution", false, function(state)
+    _G.MaxConstitution = state
+    task.spawn(function()
+        while _G.MaxConstitution do
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Stats.Constitution.Value = 1000000
+            end)
+            task.wait(0.5)
+        end
+    end)
+end, "max_const")
+
+main:toggle("Max Dexterity", false, function(state)
+    _G.MaxDexterity = state
+    task.spawn(function()
+        while _G.MaxDexterity do
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Stats.Dexterity.Value = 1000000
+            end)
+            task.wait(0.5)
+        end
+    end)
+end, "max_dex")
+
+main:toggle("Max Intelligence", false, function(state)
+    _G.MaxIntelligence = state
+    task.spawn(function()
+        while _G.MaxIntelligence do
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Stats.Intelligence.Value = 1000000
+            end)
+            task.wait(0.5)
+        end
+    end)
+end, "max_intel")
+
+main:toggle("Max Strength", false, function(state)
+    _G.MaxStrength = state
+    task.spawn(function()
+        while _G.MaxStrength do
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Stats.Strength.Value = 1000000
+            end)
+            task.wait(0.5)
+        end
+    end)
+end, "max_str")
+
+main:toggle("Max Wisdom", false, function(state)
+    _G.MaxWisdom = state
+    task.spawn(function()
+        while _G.MaxWisdom do
+            pcall(function()
+                game:GetService("Players").LocalPlayer.Stats.Wisdom.Value = 1000000
+            end)
+            task.wait(0.5)
+        end
+    end)
+end, "max_wis")
+
+main:space()
+
+-- SECTION: COMBAT & HITBOX
+main:section("combat")
+
+main:toggle("Auto Skill & Big Hitbox", false, function(state)
+    _G.AutoSkill = state
+    
+    task.spawn(function()
+        while _G.AutoSkill do
+            pcall(function()
+                local char = game:GetService("Players").LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if hrp and hrp:FindFirstChild("Skill1Box") then
+                    -- Mărește Hitbox-ul (Skill1Box)
+                    hrp.Skill1Box.Size = Vector3.new(2000, 2000, 2000)
+                    hrp.Skill1Box.CanCollide = false
+                    hrp.Skill1Box.Massless = true
+                    
+                    -- Trimite atacul către server
+                    local Event = game:GetService("ReplicatedStorage").BerserkerRemotes.BerSkill1_1
+                    Event:FireServer(
+                        7000010,
+                        hrp:FindFirstChild("Cut"),
+                        hrp:FindFirstChild("sword slash"),
+                        hrp:FindFirstChild("Weapon Hit Blade Flesh"),
+                        hrp.Skill1Box,
+                        char:FindFirstChild("CauseBleed"),
+                        char:FindFirstChild("CauseBurn"),
+                        1000030,
+                        200000,
+                        char:FindFirstChild("DamageBuff"),
+                        char:FindFirstChild("BloodBath"),
+                        char:FindFirstChild("Retaliation"),
+                        1000,
+                        1000
+                    )
+                end
+            end)
+            task.wait(0.1) -- Trmite atacul rapid (la fiecare 0.1 secunde)
+        end
+        
+        -- Când oprești butonul (Off), resetează hitboxul la mărimea normală
+        if not _G.AutoSkill then
+            pcall(function()
+                local box = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Skill1Box
+                box.Size = Vector3.new(2, 2, 2) -- Mărime default aproximativă
+            end)
+        end
+    end)
+end, "auto_skill")
+
+-- TAB: MISC
+misc:section("visual")
+
+misc:colorpicker("accent color", kyri.theme.accent, function(c)
+    w:accent(c)
+end, "accent")
+
+misc:space()
+misc:section("theme presets")
+misc:button("midnight", function() w:apply_theme(kyri.presets["midnight"]) end)
+misc:button("rose", function() w:apply_theme(kyri.presets["rose"]) end)
+misc:button("default", function() w:apply_theme(kyri.presets["kyri"]) end)
