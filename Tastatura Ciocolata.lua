@@ -67,7 +67,7 @@ end
 ------------------------------------------------
 -- CREARE INTERFAȚĂ ORIZONTALĂ (KYRILIB)
 ------------------------------------------------
-local w = kyri.new("Autofarm M", {
+local w = kyri.new("M's Keyboard, {
     GameName = "AutofarmStage",
     AutoLoad = "default"
 })
