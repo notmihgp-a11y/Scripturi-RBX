@@ -1,0 +1,207 @@
+local kyri = loadstring(game:HttpGet("https://kyrilib.dev/kyrilib/"))()
+
+local w = kyri.new("prison life", {
+    GameName = "PrisonLife",
+    AutoLoad = "default"
+})
+
+local main = w:tab("Main", "sword")
+local misc = w:tab("Misc", "settings")
+
+-- Setăm baza default pe care o folosește scriptul la pornire
+_G.SelectedBase = "Base5"
+
+-- Funcție utilitară pentru a găsi obiectele "nil"
+local function GetNil(Name, DebugId)
+    for _, Object in getnilinstances() do
+        if Object.Name == Name and Object:GetDebugId() == DebugId then
+            return Object
+        end
+    end
+end
+
+main:section("movement")
+main:toggle("fly", false, function(state) w:notify("fly", state and "on" or "off", 2) end, "fly")
+main:slider("walkspeed", 16, 500, 16, function(val) game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = val end, "ws")
+main:slider("jump power", 50, 500, 50, function(val) game.Players.LocalPlayer.Character.Humanoid.JumpPower = val end, "jp")
+
+main:space()
+main:section("teleport")
+main:dropdown("location", {"spawn", "prison", "criminal base"}, "spawn", function(val) w:notify("teleport", "going to " .. val, 2) end)
+
+main:space()
+main:section("Base Settings")
+
+-- Dropdown pentru a alege baza (1-8)
+main:dropdown("Select Base", {"Base1", "Base2", "Base3", "Base4", "Base5", "Base6", "Base7", "Base8"}, "Base5", function(val)
+    _G.SelectedBase = val
+    w:notify("Base Settings", "Ai selectat: " .. val, 2)
+end)
+
+main:space()
+main:section("Auto Actions")
+
+-- Toggle Fuel
+main:toggle("Auto Fuel", false, function(state)
+    _G.FuelLoop = state
+    if state then
+        w:notify("Fuel", "Auto-tick pornit pe " .. _G.SelectedBase, 2)
+        task.spawn(function()
+            while _G.FuelLoop do
+                local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.FuelService.RF.ManualTick
+                if workspace.Bases:FindFirstChild(_G.SelectedBase) then
+                    Event:InvokeServer(workspace.Bases[_G.SelectedBase].FuelPlaces.FuelPlace1)
+                end
+                task.wait(0.01) 
+            end
+        end)
+    else
+        w:notify("Fuel", "Auto-tick oprit", 2)
+    end
+end, "fuel_toggle")
+
+-- Toggle LevelUp FuelPlace2
+main:toggle("Auto LevelUp FuelPlace2", false, function(state)
+    _G.LevelUpLoop = state
+    if state then
+        w:notify("LevelUp", "Auto LevelUp pornit pe " .. _G.SelectedBase, 2)
+        task.spawn(function()
+            while _G.LevelUpLoop do
+                local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.FuelPlaceService.RF.LevelUp
+                if workspace.Bases:FindFirstChild(_G.SelectedBase) then
+                    local Result = Event:InvokeServer(
+                        workspace.Bases[_G.SelectedBase].FuelPlaces.FuelPlace2,
+                        1
+                    )
+                    local ExpectedResult = table.unpack({
+                        true
+                    })
+                end
+                task.wait(0.5)
+            end
+        end)
+    else
+        w:notify("LevelUp", "Auto LevelUp oprit", 2)
+    end
+end, "levelup_toggle")
+
+-- Toggle Boat Launch
+main:toggle("Auto Boat Launch", false, function(state)
+    _G.BoatLoop = state
+    if state then
+        w:notify("Boat", "Auto-launch pornit pe " .. _G.SelectedBase, 2)
+        task.spawn(function()
+            while _G.BoatLoop do
+                local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BoatService.RF.Launch
+                if workspace.Bases:FindFirstChild(_G.SelectedBase) then
+                    Event:InvokeServer(workspace.Bases[_G.SelectedBase].SailPad)
+                end
+                task.wait(0.2)
+            end
+        end)
+    else
+        w:notify("Boat", "Auto-launch oprit", 2)
+    end
+end, "boat_toggle")
+
+-- Toggle Collect & Add Fuel 1
+main:toggle("Auto Collect & Add 1", false, function(state)
+    _G.CollectLoop1 = state
+    if state then
+        w:notify("Collect 1", "Pornit pe " .. _G.SelectedBase, 2)
+        task.spawn(function()
+            while _G.CollectLoop1 do
+                local Event1 = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.FuelService.RF.CollectFuel
+                Event1:InvokeServer(GetNil("1", "1_1713040"))
+                task.wait(0.1)
+                
+                local Event2 = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BoatService.RF.AddFuel
+                if workspace.Bases:FindFirstChild(_G.SelectedBase) then
+                    Event2:InvokeServer(workspace.Bases[_G.SelectedBase].SailPad.ClickProxy)
+                end
+                task.wait(0.5)
+            end
+        end)
+    else
+        w:notify("Collect 1", "Oprit", 2)
+    end
+end, "collect_toggle1")
+
+-- Toggle Auto Add
+main:toggle("Auto Add", false, function(state)
+    _G.AddLoop = state
+    if state then
+        w:notify("Auto Add", "Pornit pe " .. _G.SelectedBase, 2)
+        task.spawn(function()
+            while _G.AddLoop do
+                local Backpack = game.Players.LocalPlayer:FindFirstChild("Backpack")
+                if Backpack then
+                    for _, item in ipairs(Backpack:GetChildren()) do
+                        if string.find(item.Name, "Fuel") then
+                            local EquipEvent = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.InventoryService.RF.Equip
+                            local Result1 = EquipEvent:InvokeServer(item)
+                            local ExpectedResult1 = table.unpack({})
+                            
+                            task.wait(0.1)
+                            
+                            local AddEvent = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BoatService.RF.AddFuel
+                            if workspace.Bases:FindFirstChild(_G.SelectedBase) then
+                                local Result2 = AddEvent:InvokeServer(workspace.Bases[_G.SelectedBase].SailPad.ClickProxy)
+                                local ExpectedResult2 = table.unpack({})
+                            end
+                            
+                            task.wait(0.2)
+                        end
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    else
+        w:notify("Auto Add", "Oprit", 2)
+    end
+end, "add_toggle")
+
+-- Toggle Auto Prestige
+main:toggle("Auto Prestige", false, function(state)
+    _G.PrestigeLoop = state
+    if state then
+        w:notify("Prestige", "Auto-Prestige pornit", 2)
+        task.spawn(function()
+            while _G.PrestigeLoop do
+                local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BaseService.RF.Prestige
+                Event:InvokeServer()
+                task.wait(0.5)
+            end
+        end)
+    else
+        w:notify("Prestige", "Auto-Prestige oprit", 2)
+    end
+end, "prestige_toggle")
+
+-- Toggle Auto Collect Fuel 4 (Butonul nou adăugat)
+main:toggle("Auto Collect Fuel 4", false, function(state)
+    _G.CollectFuel4Loop = state
+    if state then
+        w:notify("Collect 4", "Auto-collect pornit", 2)
+        task.spawn(function()
+            while _G.CollectFuel4Loop do
+                local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.FuelService.RF.CollectFuel
+                local Result = Event:InvokeServer(GetNil("4", "1_2443122"))
+                local ExpectedResult = table.unpack({})
+                
+                task.wait(0.5)
+            end
+        end)
+    else
+        w:notify("Collect 4", "Auto-collect oprit", 2)
+    end
+end, "collect_fuel4_toggle")
+
+misc:section("visual")
+misc:colorpicker("accent color", kyri.theme.accent, function(c) w:accent(c) end, "accent")
+misc:space()
+misc:section("theme presets")
+misc:button("midnight", function() w:apply_theme(kyri.presets["midnight"]) end)
+misc:button("rose", function() w:apply_theme(kyri.presets["rose"]) end)
+misc:button("default", function() w:apply_theme(kyri.presets["kyri"]) end)
