@@ -17,106 +17,178 @@ local grazingLocations = {
     ["7. Volcano"] = Vector3.new(-601, 30, 582)
 }
 
--- Locația selectată implicit din dropdown
+-- Variabile de stare și configurare implicită
 local selectedGrazingSpot = "1. basic"
+local selectedDogIndex = 1 
+local isGrazingFarmActive = false
+
+local grazingDuration = 40  -- Modificabil prin slider (25 - 60 sec)
+local sheepfoldDuration = 45 -- Modificabil prin slider (30 - 120 sec)
+
+local isCurrentlyGrazingLoop = false -- Indică dacă execuția de grazing (pe câine) este activă
+local isCurrentlyInSheepfold = false  -- Indică dacă oile se află în faza de grajd
+local collecting = false
+local antiAfkEnabled = false
+
+-- Funcție internă utilă pentru teleportarea stabilă deasupra câinelui selectat
+local function teleportToDog()
+    local player = game.Players.LocalPlayer
+    local heightOffset = Vector3.new(0, 0, 5) 
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        local dogsFolder = workspace:FindFirstChild("Dogs")
+        
+        if dogsFolder then
+            local dogs = dogsFolder:GetChildren()
+            local targetDog = dogs[selectedDogIndex]
+            
+            if targetDog then
+                if targetDog:IsA("BasePart") then
+                    hrp.CFrame = CFrame.new(targetDog.Position + heightOffset)
+                elseif targetDog:FindFirstChild("HumanoidRootPart") then
+                    hrp.CFrame = CFrame.new(targetDog.HumanoidRootPart.Position + heightOffset)
+                elseif targetDog.PrimaryPart then
+                    hrp.CFrame = CFrame.new(targetDog.PrimaryPart.Position + heightOffset)
+                end
+            end
+        end
+    end
+end
 
 -- ==========================================
--- FILA 1: CONTROLUL OILOR (SHEEP CONTROL)
+-- FILA 1: AUTOFARM
 -- ==========================================
-local main = w:tab("Sheep Control", "paw")
+local autofarmTab = w:tab("Autofarm", "flash")
 
-main:section("Actions")
+autofarmTab:section("Grazing Settings")
 
 -- Dropdown pentru selectarea locației de grazing
-main:dropdown("Select Grazing Spot", {"1. basic", "2. rich", "3. flower", "4. building", "5. alien", "6. heavenly", "7. Volcano"}, "1. basic", function(selected)
+autofarmTab:dropdown("Select Grazing Spot", {"1. basic", "2. rich", "3. flower", "4. building", "5. alien", "6. heavenly", "7. Volcano"}, "1. basic", function(selected)
     selectedGrazingSpot = selected
     w:notify("Grazing", "Spot schimbat in: " .. selected, 1.5)
 end, "grazing_spot_dropdown")
 
--- Starea globală pentru a controla acțiunea
-local isGrazingFarmActive = false
+-- Dropdown pentru selectarea numărului câinelui
+autofarmTab:dropdown("Select Dog Index", {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, "1", function(selected)
+    selectedDogIndex = tonumber(selected) or 1
+    w:notify("Dogs", "Caine selectat: #" .. selected, 1.5)
+end, "dog_index_dropdown")
 
--- Butonul Start Grazing modificat pentru a folosi dropdown-ul
-main:toggle("Start Grazing", false, function(state)
+-- Slider pentru timpul de grazing (25 la 60 secunde)
+autofarmTab:slider("Grazing Duration (sec)", 25, 60, 40, function(value)
+    grazingDuration = value
+end, "grazing_duration_slider")
+
+-- Slider pentru timpul petrecut în grajd (30 secunde la 120 secunde / 2 minute)
+autofarmTab:slider("Sheepfold Duration (sec)", 30, 120, 45, function(value)
+    sheepfoldDuration = value
+end, "sheepfold_duration_slider")
+
+-- Butonul principal de Autofarm
+autofarmTab:toggle("Autofarm", false, function(state)
     isGrazingFarmActive = state
 
     if isGrazingFarmActive then
+        w:notify("Autofarm", "Autofarm Ciclul Complet Pornit", 2)
+        
+        -- BUCLA PRINCIPALĂ (Ciclul automat: Păscut -> Grajd -> Eliberare -> Păscut)
         task.spawn(function()
             local player = game.Players.LocalPlayer
             local sheepEvent = game:GetService("ReplicatedStorage").Events.SheepAction
             
-            -- Preluăm coordonata din tabel în funcție de ce e selectat în dropdown
-            local centerCoords = grazingLocations[selectedGrazingSpot] or Vector3.new(373, 29, -88)
-            
-            -- 1. Teleportare inițială instantanee direct în locația aleasă
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                player.Character.HumanoidRootPart.CFrame = CFrame.new(centerCoords)
-                w:notify("Sheep", "Teleported to " .. selectedGrazingSpot .. "! Waiting 2 seconds...", 1.5)
+            while isGrazingFarmActive do
+                -- -------------------------------------------------------------
+                -- FAZA 1: GRAZING (PĂSCUT)
+                -- -------------------------------------------------------------
+                isCurrentlyGrazingLoop = true
+                isCurrentlyInSheepfold = false
+                
+                local centerCoords = grazingLocations[selectedGrazingSpot] or Vector3.new(373, 29, -88)
+                
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = CFrame.new(centerCoords)
+                    w:notify("Autofarm", "Teleport la spot. Asteptare 2 secunde...", 1.5)
+                end
+                
+                task.wait(2)
+                if not isGrazingFarmActive then break end
+                
+                sheepEvent:FireServer("grazing")
+                w:notify("Autofarm", "Grazing pornit! Teleportare deasupra cainelui #" .. selectedDogIndex, 2)
+                
+                local startTime = tick()
+                
+                -- Menținerea caracterului deasupra câinelui pe durata de grazing setată
+                while isGrazingFarmActive and (tick() - startTime) < grazingDuration do
+                    teleportToDog()
+                    task.wait(0.3)
+                end
+                
+                -- Oprim păscutul (stopgrazing), dar lăsăm caracterul pe poziție (fără teleport înapoi la centru)
+                sheepEvent:FireServer("stopgrazing")
+                w:notify("Autofarm", "Grazing terminat. Trimitere oili la Sheepfold!", 2)
+                isCurrentlyGrazingLoop = false
+                
+                task.wait(1)
+                if not isGrazingFarmActive then break end
+
+                -- -------------------------------------------------------------
+                -- FAZA 2: SHEEPFOLD (GRAJD)
+                -- -------------------------------------------------------------
+                isCurrentlyInSheepfold = true
+                sheepEvent:FireServer("sheepfold") -- Trimite oile în grajd prima dată
+                
+                local foldStart = tick()
+                -- Menținem oile în grajd conform slider-ului ȘI continuăm teleportarea pe câine
+                while isGrazingFarmActive and (tick() - foldStart) < sheepfoldDuration do
+                    teleportToDog()
+                    task.wait(0.3)
+                end
+                
+                isCurrentlyInSheepfold = false
+                if not isGrazingFarmActive then break end
+                
+                -- -------------------------------------------------------------
+                -- FAZA 3: RELEASE (ELIBERARE OILI DIN GRAJD)
+                -- -------------------------------------------------------------
+                w:notify("Autofarm", "Timpul in grajd a expirat! Se trimite Release (Out)...", 2)
+                sheepEvent:FireServer("out") 
+                
+                task.wait(1.5) 
             end
             
-            -- 2. Așteaptă 2 secunde inițiale
-            task.wait(2)
-            if not isGrazingFarmActive then return end
-            
-            -- 3. Pornește grazing
-            sheepEvent:FireServer("grazing")
-            w:notify("Sheep", "Grazing started! Active for 20s.", 2)
-            
-            -- 4. Așteaptă 20 de secunde
-            task.wait(20)
-            
-            -- 5. După 20s, oprește grazing-ul automat
-            if isGrazingFarmActive then
-                isGrazingFarmActive = false
-                sheepEvent:FireServer("stopgrazing")
-                w:notify("Sheep", "Time up! Stop Grazing trimis.", 2)
-                w:update_toggle("start_grazing_toggle", false)
+            isCurrentlyGrazingLoop = false
+            isCurrentlyInSheepfold = false
+        end)
+        
+        -- BUCLA SECUNDARĂ (Anti-stuck / Spam la 5 secunde în funcție de starea curentă)
+        task.spawn(function()
+            local sheepEvent = game:GetService("ReplicatedStorage").Events.SheepAction
+            while isGrazingFarmActive do
+                task.wait(5)
+                if not isGrazingFarmActive then break end
+                
+                -- Dacă suntem în faza de grajd (Sheepfold ON), trimitem stopgrazing și sheepfold la fiecare 5 secunde
+                if isCurrentlyInSheepfold then
+                    sheepEvent:FireServer("stopgrazing")
+                    sheepEvent:FireServer("sheepfold")
+                    
+                -- Dacă ferma e pornită, dar nu suntem nici la păscut, nici în grajd, trimitem doar stopgrazing
+                elseif not isCurrentlyGrazingLoop then
+                    sheepEvent:FireServer("stopgrazing")
+                end
             end
         end)
+
     else
-        w:notify("Sheep", "Automation Stopped Manually", 2)
+        isCurrentlyGrazingLoop = false
+        isCurrentlyInSheepfold = false
+        w:notify("Autofarm", "Autofarm Dezactivat", 2)
     end
-end, "start_grazing_toggle")
+end, "autofarm_toggle")
 
--- Buton ON/OFF pentru Stop Grazing
-main:toggle("Stop Grazing", false, function(state)
-    if state then
-        local Event = game:GetService("ReplicatedStorage").Events.SheepAction
-        Event:FireServer("stopgrazing")
-        w:notify("Sheep", "Stop Grazing: ON", 2)
-    else
-        w:notify("Sheep", "Stop Grazing: OFF", 2)
-    end
-end, "stop_grazing_toggle")
-
--- Buton ON/OFF pentru Sheepfold
-main:toggle("Sheepfold", false, function(state)
-    if state then
-        local Event = game:GetService("ReplicatedStorage").Events.SheepAction
-        Event:FireServer("sheepfold")
-        w:notify("Sheep", "Sheepfold: ON", 2)
-    else
-        w:notify("Sheep", "Sheepfold: OFF", 2)
-    end
-end, "sheepfold_toggle")
-
--- Buton ON/OFF pentru Out
-main:toggle("Release (Out)", false, function(state)
-    if state then
-        local Event = game:GetService("ReplicatedStorage").Events.SheepAction
-        Event:FireServer("out")
-        w:notify("Sheep", "Release (Out): ON", 2)
-    else
-        w:notify("Sheep", "Release (Out): OFF", 2)
-    end
-end, "sheep_out_toggle")
-
-main:space()
-main:section("Collection")
-
--- Buton ON/OFF pentru Colectare Automată
-local collecting = false
-main:toggle("Collect Wool", false, function(state)
+-- Buton ON/OFF (Toggle) pentru lână, plasat direct sub butonul Autofarm
+autofarmTab:toggle("Collect Wool", false, function(state)
     collecting = state
 
     if collecting then
@@ -148,14 +220,51 @@ main:toggle("Collect Wool", false, function(state)
     end
 end, "collect_wool_toggle")
 
+
 -- ==========================================
--- FILA 2: TELEPORTĂRI (TELEPORTS)
+-- FILA 2: CONTROLUL OILOR (SHEEP CONTROL)
+-- ==========================================
+local main = w:tab("Sheep Control", "paw")
+
+-- Secțiunea numită simplu "Actions"
+main:section("Actions")
+
+-- Buton Simplu (1-Time) pentru Start Grazing manual
+main:button("Start Grazing", function()
+    local Event = game:GetService("ReplicatedStorage").Events.SheepAction
+    Event:FireServer("grazing")
+    w:notify("Sheep", "Start Grazing Sent", 2)
+end)
+
+-- Buton Simplu (1-Time)
+main:button("Stop Grazing", function()
+    local Event = game:GetService("ReplicatedStorage").Events.SheepAction
+    Event:FireServer("stopgrazing")
+    w:notify("Sheep", "Stop Grazing Sent", 2)
+end)
+
+-- Redenumit în Bring in (1-Time)
+main:button("Bring in", function()
+    local Event = game:GetService("ReplicatedStorage").Events.SheepAction
+    Event:FireServer("sheepfold")
+    w:notify("Sheep", "Bring in Sent", 2)
+end)
+
+-- Redenumit în Bring out (1-Time)
+main:button("Bring out", function()
+    local Event = game:GetService("ReplicatedStorage").Events.SheepAction
+    Event:FireServer("out")
+    w:notify("Sheep", "Bring out Sent", 2)
+end)
+
+
+-- ==========================================
+-- FILA 3: TELEPORTĂRI (TELEPORTS)
 -- ==========================================
 local teleportsTab = w:tab("Teleports", "map")
 
 teleportsTab:section("Locations")
 
--- Funcție ajutătoare internă pentru a efectua teleportarea instantă în siguranță
 local function instantTeleport(coords, locationName)
     local player = game.Players.LocalPlayer
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -166,7 +275,6 @@ local function instantTeleport(coords, locationName)
     end
 end
 
--- Butoane Teleport implicite
 teleportsTab:button("Spawn", function()
     instantTeleport(Vector3.new(71, 5, -78), "Spawn")
 end)
@@ -179,7 +287,6 @@ teleportsTab:button("Pet store", function()
     instantTeleport(Vector3.new(214, 5, -78), "Pet store")
 end)
 
--- Noile butoane de teleportare adăugate la cerere
 teleportsTab:button("Volcano", function()
     instantTeleport(Vector3.new(-601, 30, 582), "Volcano")
 end)
@@ -188,8 +295,9 @@ teleportsTab:button("Chill spot", function()
     instantTeleport(Vector3.new(214, 253, 305), "Chill spot")
 end)
 
+
 -- ==========================================
--- FILA 3: JUCĂTOR (PLAYER)
+-- FILA 4: JUCĂTOR (PLAYER)
 -- ==========================================
 local playerTab = w:tab("Player", "user")
 
@@ -198,12 +306,10 @@ playerTab:section("LocalPlayer Modifications")
 local defaultWalkSpeed = 16
 local defaultJumpPower = 50
 
--- Variabile ce păstrează opțiunile tale pe tot parcursul sesiunii
 local customWalkSpeed = defaultWalkSpeed
 local customJumpPower = defaultJumpPower
 local noclipEnabled = false
 
--- Funcție ajutătoare pentru a aplica din nou setările pe noul Humanoid
 local function applyPlayerSettings(character)
     local humanoid = character:WaitForChild("Humanoid", 5)
     if humanoid then
@@ -213,7 +319,6 @@ local function applyPlayerSettings(character)
     end
 end
 
--- Monitorizăm când se schimbă caracterul sau dă respawn
 local lp = game.Players.LocalPlayer
 if lp.Character then
     task.spawn(applyPlayerSettings, lp.Character)
@@ -222,7 +327,6 @@ lp.CharacterAdded:Connect(function(char)
     task.spawn(applyPlayerSettings, char)
 end)
 
--- Slider pentru WalkSpeed
 playerTab:slider("WalkSpeed", 16, 250, defaultWalkSpeed, function(value)
     customWalkSpeed = value
     if lp.Character and lp.Character:FindFirstChild("Humanoid") then
@@ -230,16 +334,15 @@ playerTab:slider("WalkSpeed", 16, 250, defaultWalkSpeed, function(value)
     end
 end, "walkspeed_slider")
 
--- Slider pentru JumpPower
 playerTab:slider("Jump Power", 50, 350, defaultJumpPower, function(value)
     customJumpPower = value
     if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-        lp.Character.Humanoid.UseJumpPower = true
-        lp.Character.Humanoid.JumpPower = value
+        hud = lp.Character.Humanoid
+        hud.UseJumpPower = true
+        hud.JumpPower = value
     end
 end, "jumppower_slider")
 
--- Buton ON/OFF pentru Noclip
 playerTab:toggle("Noclip", false, function(state)
     noclipEnabled = state
     if state then
@@ -249,7 +352,29 @@ playerTab:toggle("Noclip", false, function(state)
     end
 end, "noclip_toggle")
 
--- Loop pentru Noclip rulat în fundal
+-- NOUĂ SECȚIUNE: Security pentru protecție Anti-AFK
+playerTab:section("Security")
+
+playerTab:toggle("Anti-AFK", false, function(state)
+    antiAfkEnabled = state
+    if antiAfkEnabled then
+        w:notify("Security", "Anti-AFK Activat. Nu vei primi kick!", 2)
+    else
+        w:notify("Security", "Anti-AFK Dezactivat", 2)
+    end
+end, "anti_afk_toggle")
+
+-- Conexiunea nativă pentru blocarea IDLE kick-ului de 20 de minute
+local vu = game:GetService("VirtualUser")
+lp.Idled:Connect(function()
+    if antiAfkEnabled then
+        vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end
+end)
+
+-- Pasul RunService pentru Noclip
 game:GetService("RunService").Stepped:Connect(function()
     if noclipEnabled and lp.Character then
         for _, part in ipairs(lp.Character:GetDescendants()) do
