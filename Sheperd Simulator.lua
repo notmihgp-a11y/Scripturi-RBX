@@ -206,13 +206,13 @@ autofarmTab:toggle("Collect Wool", false, function(state)
                     for i, sheep in ipairs(sheeps) do
                         if not collecting then break end
                         Event:FireServer(sheep)
-                        task.wait(0.1)
+                        task.wait(0.01)
                     end
                 else
                     w:notify("Error", "CubeSheep not found!", 2)
-                    task.wait(2)
+                    task.wait(0.01)
                 end
-                task.wait(1)
+                task.wait(0.01)
             end
         end)
     else
